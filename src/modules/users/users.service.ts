@@ -2,14 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { Users } from './users.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
 import { ISignUpDTO } from '../auth/auth-interfaces';
 import { hash } from 'argon2';
 
 @Injectable()
 export class UsersService {
 	constructor(
-		private readonly configService: ConfigService,
 		@InjectRepository(Users)
 		private usersRepository: Repository<Users>,
 	) {}
@@ -39,26 +37,5 @@ export class UsersService {
 
 	async update(userId: string, updateUserData: Partial<Users>): Promise<void> {
 		await this.usersRepository.update(userId, { ...updateUserData });
-	}
-
-	async getFollowersConnection(userId: string): Promise<string[]> {
-		try {
-			const connections = await this.usersRepository.query(
-				`SELECT 
-				"connectionId"
-				FROM users WHERE users.id IN 
-				(SELECT 
-					"subscriberId" 
-					FROM subscriptions  
-					WHERE subscriptions."subscriptionTargetId" = $1
-					) 
-					or users.id = $1`,
-				[userId],
-			);
-
-			return connections.map(connectsData => connectsData.connectionId);
-		} catch (error) {
-			throw new Error(error.message);
-		}
 	}
 }
