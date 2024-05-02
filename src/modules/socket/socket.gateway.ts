@@ -5,9 +5,9 @@ import {
 	WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { UseGuards } from '@nestjs/common';
+import { Inject, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/Guards/jwt-auth.guard';
-import { UsersService } from '../users/users.service';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 
 @WebSocketGateway(8080, {
 	cors: {
@@ -15,25 +15,25 @@ import { UsersService } from '../users/users.service';
 	},
 })
 export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
-	private readonly connectedClients: Map<string, Socket> = new Map();
-	constructor(private usersService: UsersService) {}
+	constructor(@Inject(CACHE_MANAGER) private cacheService: Cache) {}
 	@WebSocketServer()
 	public server: Server;
 
 	@UseGuards(JwtAuthGuard)
 	handleConnection(client: Socket): void {
-		this.connectedClients.set(client.id, client);
-		this.usersService.update(client.handshake.auth.user?.id, {
-			connectionId: client.id,
-		});
+		this.cacheService.set(client.handshake.auth.user?.id, client.id);
 	}
 
 	handleDisconnect(client: Socket): void {
-		this.connectedClients.delete(client.id);
-		this.usersService.update(client.handshake.auth.user?.id, { connectionId: '' });
+		this.cacheService.del(client.handshake.auth.user?.id);
 	}
 
-	handleTriggerClips(connections: string[]): void {
-		this.server.to(connections).emit('update-clips');
+	async handleTriggerClips(subscriberIds: string[]): Promise<void> {
+		for (const id of subscriberIds) {
+			const connection = await this.cacheService.get<string>(id);
+			if (connection) {
+				this.server.to(connection).emit('update-clips');
+			}
+		}
 	}
 }

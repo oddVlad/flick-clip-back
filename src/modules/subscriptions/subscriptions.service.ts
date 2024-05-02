@@ -23,7 +23,7 @@ export class SubscriptionsService {
 		}
 	}
 
-	async getFollowers(id: string): Promise<any[]> {
+	async getFollowers(id: string): Promise<Subscriptions[]> {
 		try {
 			return await this.subsRepository.query(
 				`SELECT 

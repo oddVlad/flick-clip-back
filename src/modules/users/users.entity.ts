@@ -21,9 +21,6 @@ export class Users {
 	@OneToMany(() => Subscriptions, subscription => subscription.subscriptionTarget)
 	public subscribers: Subscriptions[];
 
-	@Column({ default: '' })
-	public connectionId: string;
-
 	@CreateDateColumn()
 	public readonly createdAt: Date;
 }

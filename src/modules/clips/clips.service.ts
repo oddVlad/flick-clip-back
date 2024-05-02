@@ -5,9 +5,9 @@ import { Clips } from './clips.entity';
 import { IPostClipRequest, IGetOneClipResponse } from './clips-interfaces';
 import * as fs from 'fs';
 import * as path from 'path';
-import { UsersService } from '../users/users.service';
 import { SocketGateway } from '../socket/socket.gateway';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Injectable()
 export class ClipsService {
@@ -15,7 +15,7 @@ export class ClipsService {
 		@InjectRepository(Clips)
 		private ClipsRepository: Repository<Clips>,
 		private socketGateway: SocketGateway,
-		private usersService: UsersService,
+		private subsService: SubscriptionsService,
 		@Inject(CACHE_MANAGER) private cacheService: Cache,
 	) {}
 
@@ -93,13 +93,9 @@ export class ClipsService {
 				creatorId,
 			});
 			const newClips = await this.ClipsRepository.save(createdClips);
-			const subsConnections = await this.usersService.getFollowersConnection(
-				newClips.creatorId,
-			);
-
-			console.log(subsConnections);
-
-			this.socketGateway.handleTriggerClips(subsConnections);
+			const subsribers = await this.subsService.getFollowers(newClips.creatorId);
+			const subsribersIds = subsribers.map(sub => sub.subscriberId);
+			this.socketGateway.handleTriggerClips(subsribersIds.concat(newClips.creatorId));
 
 			return newClips;
 		} catch (error) {
